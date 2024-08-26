@@ -13,15 +13,15 @@ le = joblib.load('label_encoder.pkl')
 model = load_model('deep_learning_model.h5')
 
 def preprocess_input(input_df):
-    # Handle missing values if necessary
-    # Here we assume input_df has all necessary columns
-    
-    # Encode categorical variables if any
-    # This step depends on how you handle categorical features
-    # For simplicity, assume all features are numerical
-    
-    # Scale numerical features
-    input_scaled = scaler.transform(input_df[top_features])
+    # Ensure the required features are present
+    missing_features = [feat for feat in top_features if feat not in input_df.columns]
+    if missing_features:
+        st.error(f"The following required features are missing: {missing_features}")
+        return None
+
+    # Select and scale the required features
+    input_df = input_df[top_features]
+    input_scaled = scaler.transform(input_df)
     
     return input_scaled
 
@@ -37,14 +37,10 @@ def main():
     if uploaded_file is not None:
         input_df = pd.read_csv(uploaded_file)
         
-        # Ensure the required features are present
-        missing_features = [feat for feat in top_features if feat not in input_df.columns]
-        if missing_features:
-            st.error(f"The following required features are missing: {missing_features}")
-        else:
-            # Preprocess input
-            input_processed = preprocess_input(input_df)
-            
+        # Preprocess input
+        input_processed = preprocess_input(input_df)
+        
+        if input_processed is not None:
             # Make predictions
             prediction = model.predict(input_processed)
             pred_class = (prediction > 0.5).astype(int).flatten()
