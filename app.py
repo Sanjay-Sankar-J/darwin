@@ -1,37 +1,76 @@
+# app.py
+
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler
-from tensorflow.keras.models import load_model
 import joblib
+from tensorflow.keras.models import load_model
 
-# Load the trained model and preprocessing objects
-model = load_model('deep_learning_model.h5')
+# Load the scaler, feature selector, and label encoder
 scaler = joblib.load('scaler.pkl')
-label_encoder = joblib.load('label_encoder.pkl')
+top_features = joblib.load('top_features.pkl')
+le = joblib.load('label_encoder.pkl')
 
-# Function to preprocess input data
-def preprocess_input(data):
-    data_scaled = scaler.transform(data)
-    return data_scaled
+# Load the trained model
+model = load_model('deep_learning_model.h5')
 
-# Function to make predictions
-def predict_class(input_data):
-    input_data_preprocessed = preprocess_input(input_data)
-    predictions = model.predict(input_data_preprocessed)
-    predicted_classes = np.argmax(predictions, axis=1)
-    return label_encoder.inverse_transform(predicted_classes)
+# Function to preprocess user input
+def preprocess_input(input_data):
+    # Convert input_data to DataFrame
+    input_df = pd.DataFrame([input_data])
+    
+    # Handle missing values if necessary
+    # (Assuming user inputs all required fields)
+    
+    # Encode categorical variables
+    # For simplicity, assume categorical variables are already numerical or handled
 
-# Streamlit UI
-st.title('DARWIN Dataset Classification')
-st.write('Enter feature values to get predictions.')
+    # Scale numerical features
+    input_df_scaled = scaler.transform(input_df)
+    
+    # Select top features
+    input_selected = input_df[top_features]
+    input_scaled = scaler.transform(input_selected)
+    
+    return input_scaled
 
-# Example input fields (adjust as per your features)
-features = {}
-for col in scaler.get_feature_names_out():
-    features[col] = st.number_input(f'{col}', value=0.0)
+# Define the input fields
+def user_input_features():
+    # Since there are 50 features, it's impractical to have all as input fields.
+    # Instead, you might allow uploading a file or selecting from predefined options.
+    # For demonstration, let's assume top_features are known and manually add a few.
+    
+    # Example with dummy feature names. Replace with actual feature names.
+    input_data = {}
+    for feature in top_features:
+        input_data[feature] = st.number_input(f'Input {feature}', value=0.0)
+    return input_data
 
-if st.button('Predict'):
-    input_data = pd.DataFrame([features], columns=scaler.get_feature_names_out())
-    prediction = predict_class(input_data)
-    st.write(f'Predicted class: {prediction[0]}')
+def main():
+    st.title("Deep Learning Model Deployment with Streamlit")
+    
+    st.write("""
+    ### Enter the feature values to get a prediction
+    """)
+    
+    input_data = user_input_features()
+    
+    if st.button('Predict'):
+        # Preprocess the input
+        input_processed = preprocess_input(input_data)
+        
+        # Make prediction
+        prediction = model.predict(input_processed)
+        
+        # For binary classification
+        pred_class = (prediction > 0.5).astype(int)[0][0]
+        pred_label = le.inverse_transform([pred_class])[0]
+        
+        # For multiclass classification
+        # pred_class = np.argmax(prediction, axis=1)
+        # pred_label = le.inverse_transform(pred_class)[0]
+        
+        st.write(f"### Predicted Class: {pred_label}")
+
+if __name__ == '__main__':
+    main()
