@@ -1,79 +1,37 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import joblib
+from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.models import load_model
+import joblib
 
-# Load the scaler, feature selector, and label encoder
+# Load the trained model and preprocessing objects
+model = load_model('darwin_classification_model.h5')
 scaler = joblib.load('scaler.pkl')
-top_features = joblib.load('top_features.pkl')
-le = joblib.load('label_encoder.pkl')
+label_encoder = joblib.load('label_encoder.pkl')
 
-# Load the trained model
-model = load_model('deep_learning_model.h5')
+# Function to preprocess input data
+def preprocess_input(data):
+    data_scaled = scaler.transform(data)
+    return data_scaled
 
-def preprocess_input(input_df):
-    # Ensure all required features are present and add missing features with default values
-    for feat in top_features:
-        if feat not in input_df.columns:
-            input_df[feat] = 0  # Adding missing features with default values
-    
-    # Reorder columns to match the order used during training
-    input_df = input_df[top_features]
-    
-    # Print the ordered DataFrame for debugging
-    st.write("### Ordered DataFrame for Scaler:")
-    st.write(input_df.head())
+# Function to make predictions
+def predict_class(input_data):
+    input_data_preprocessed = preprocess_input(input_data)
+    predictions = model.predict(input_data_preprocessed)
+    predicted_classes = np.argmax(predictions, axis=1)
+    return label_encoder.inverse_transform(predicted_classes)
 
-    # Scale the features
-    input_scaled = scaler.transform(input_df)
-    
-    return input_scaled
+# Streamlit UI
+st.title('DARWIN Dataset Classification')
+st.write('Enter feature values to get predictions.')
 
-def main():
-    st.title("Deep Learning Model Deployment with Streamlit")
-    
-    st.write("""
-    ### Upload your filtered dataset to get predictions automatically
-    """)
+# Example input fields (adjust as per your features)
+features = {}
+for col in scaler.get_feature_names_out():
+    features[col] = st.number_input(f'{col}', value=0.0)
 
-    # File uploader to upload CSV
-    uploaded_file = st.file_uploader("Upload your input CSV file", type="csv")
-
-    if uploaded_file is not None:
-        # Read the uploaded CSV file
-        input_df = pd.read_csv(uploaded_file)
-
-        # Display the uploaded data
-        st.write("### Uploaded Data")
-        st.write(input_df.head())
-
-        # Preprocess input
-        try:
-            input_processed = preprocess_input(input_df)
-
-            # Make predictions
-            predictions = model.predict(input_processed)
-            pred_classes = (predictions > 0.5).astype(int).flatten()  # Convert to binary class
-            pred_labels = le.inverse_transform(pred_classes)  # Convert to original labels
-
-            # Create a DataFrame with the predictions
-            results_df = input_df.copy()
-            results_df['Prediction'] = pred_labels
-
-            # Display results
-            st.write("### Predictions")
-            st.write(results_df[['Prediction']])
-
-            # Add a download button for predictions
-            st.download_button(
-                label="Download Predictions",
-                data=results_df.to_csv(index=False).encode('utf-8'),
-                file_name='predictions.csv',
-                mime='text/csv',
-            )
-        except ValueError as e:
-            st.error(f"Error in preprocessing: {e}")
-
-if __name__ == '__main__':
-    main()
+if st.button('Predict'):
+    input_data = pd.DataFrame([features], columns=scaler.get_feature_names_out())
+    prediction = predict_class(input_data)
+    st.write(f'Predicted class: {prediction[0]}')
