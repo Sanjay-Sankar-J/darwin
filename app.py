@@ -13,8 +13,20 @@ le = joblib.load('label_encoder.pkl')
 model = load_model('deep_learning_model.h5')
 
 def preprocess_input(input_df):
+    # Print feature names expected by the scaler
+    st.write("### Features expected by the scaler:")
+    st.write(top_features)
+
+    # Print feature names in the input DataFrame
+    st.write("### Features in the uploaded DataFrame:")
+    st.write(input_df.columns.tolist())
+    
     # Ensure all required features are present
     missing_features = [feat for feat in top_features if feat not in input_df.columns]
+    
+    # Log missing features if any
+    if missing_features:
+        st.warning(f"Missing features: {missing_features}")
     
     # Add missing features with default values
     for feat in missing_features:
