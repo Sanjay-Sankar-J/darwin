@@ -13,12 +13,14 @@ le = joblib.load('label_encoder.pkl')
 model = load_model('deep_learning_model.h5')
 
 def preprocess_input(input_df):
-    # Ensure all required features are present and in the correct order
-    for feat in top_features:
-        if feat not in input_df.columns:
-            input_df[feat] = 0  # Add missing features with default values
+    # Ensure all required features are present
+    missing_features = [feat for feat in top_features if feat not in input_df.columns]
     
-    # Reorder the columns to match the order during fitting
+    # Add missing features with default values
+    for feat in missing_features:
+        input_df[feat] = 0
+    
+    # Reorder columns to match the training set
     input_df = input_df[top_features]
     
     # Scale the features
