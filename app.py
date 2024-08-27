@@ -1,5 +1,3 @@
-# app.py
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -14,63 +12,68 @@ le = joblib.load('label_encoder.pkl')
 # Load the trained model
 model = load_model('deep_learning_model.h5')
 
-# Function to preprocess user input
-def preprocess_input(input_data):
-    # Convert input_data to DataFrame
-    input_df = pd.DataFrame([input_data])
+def preprocess_input(input_df):
+    # Ensure all required features are present and add missing features with default values
+    for feat in top_features:
+        if feat not in input_df.columns:
+            input_df[feat] = 0  # Adding missing features with default values
     
-    # Handle missing values if necessary
-    # (Assuming user inputs all required fields)
+    # Reorder columns to match the order used during training
+    input_df = input_df[top_features]
     
-    # Encode categorical variables
-    # For simplicity, assume categorical variables are already numerical or handled
+    # Print the ordered DataFrame for debugging
+    st.write("### Ordered DataFrame for Scaler:")
+    st.write(input_df.head())
 
-    # Scale numerical features
-    input_df_scaled = scaler.transform(input_df)
-    
-    # Select top features
-    input_selected = input_df[top_features]
-    input_scaled = scaler.transform(input_selected)
+    # Scale the features
+    input_scaled = scaler.transform(input_df)
     
     return input_scaled
-
-# Define the input fields
-def user_input_features():
-    # Since there are 50 features, it's impractical to have all as input fields.
-    # Instead, you might allow uploading a file or selecting from predefined options.
-    # For demonstration, let's assume top_features are known and manually add a few.
-    
-    # Example with dummy feature names. Replace with actual feature names.
-    input_data = {}
-    for feature in top_features:
-        input_data[feature] = st.number_input(f'Input {feature}', value=0.0)
-    return input_data
 
 def main():
     st.title("Deep Learning Model Deployment with Streamlit")
     
     st.write("""
-    ### Enter the feature values to get a prediction
+    ### Upload your filtered dataset to get predictions automatically
     """)
-    
-    input_data = user_input_features()
-    
-    if st.button('Predict'):
-        # Preprocess the input
-        input_processed = preprocess_input(input_data)
-        
-        # Make prediction
-        prediction = model.predict(input_processed)
-        
-        # For binary classification
-        pred_class = (prediction > 0.5).astype(int)[0][0]
-        pred_label = le.inverse_transform([pred_class])[0]
-        
-        # For multiclass classification
-        # pred_class = np.argmax(prediction, axis=1)
-        # pred_label = le.inverse_transform(pred_class)[0]
-        
-        st.write(f"### Predicted Class: {pred_label}")
+
+    # File uploader to upload CSV
+    uploaded_file = st.file_uploader("Upload your input CSV file", type="csv")
+
+    if uploaded_file is not None:
+        # Read the uploaded CSV file
+        input_df = pd.read_csv(uploaded_file)
+
+        # Display the uploaded data
+        st.write("### Uploaded Data")
+        st.write(input_df.head())
+
+        # Preprocess input
+        try:
+            input_processed = preprocess_input(input_df)
+
+            # Make predictions
+            predictions = model.predict(input_processed)
+            pred_classes = (predictions > 0.5).astype(int).flatten()  # Convert to binary class
+            pred_labels = le.inverse_transform(pred_classes)  # Convert to original labels
+
+            # Create a DataFrame with the predictions
+            results_df = input_df.copy()
+            results_df['Prediction'] = pred_labels
+
+            # Display results
+            st.write("### Predictions")
+            st.write(results_df[['Prediction']])
+
+            # Add a download button for predictions
+            st.download_button(
+                label="Download Predictions",
+                data=results_df.to_csv(index=False).encode('utf-8'),
+                file_name='predictions.csv',
+                mime='text/csv',
+            )
+        except ValueError as e:
+            st.error(f"Error in preprocessing: {e}")
 
 if __name__ == '__main__':
     main()
