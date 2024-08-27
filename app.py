@@ -13,13 +13,16 @@ le = joblib.load('label_encoder.pkl')
 model = load_model('deep_learning_model.h5')
 
 def preprocess_input(input_df):
-    # Ensure all required features are present
+    # Ensure all required features are present and in the correct order
     for feat in top_features:
         if feat not in input_df.columns:
             input_df[feat] = 0  # Add missing features with default values
     
+    # Reorder the columns to match the order during fitting
+    input_df = input_df[top_features]
+    
     # Scale the features
-    input_scaled = scaler.transform(input_df[top_features])
+    input_scaled = scaler.transform(input_df)
     
     return input_scaled
 
@@ -42,9 +45,9 @@ def main():
         st.write(input_df.head())
 
         # Preprocess input
-        input_processed = preprocess_input(input_df)
+        try:
+            input_processed = preprocess_input(input_df)
 
-        if input_processed is not None:
             # Make predictions
             predictions = model.predict(input_processed)
             pred_classes = (predictions > 0.5).astype(int).flatten()  # Convert to binary class
@@ -65,6 +68,8 @@ def main():
                 file_name='predictions.csv',
                 mime='text/csv',
             )
+        except ValueError as e:
+            st.error(f"Error in preprocessing: {e}")
 
 if __name__ == '__main__':
     main()
