@@ -6,7 +6,7 @@ from tensorflow.keras.models import load_model
 import joblib
 
 # Load the trained model and preprocessing objects
-model = load_model('darwin_classification_model.h5')
+model = load_model('deep_learning_model.h5')
 scaler = joblib.load('scaler.pkl')
 label_encoder = joblib.load('label_encoder.pkl')
 
